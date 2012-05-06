@@ -2,11 +2,18 @@ import pygame
 from collections import defaultdict
 import sys
 
+TILE_SIZE = 20
+
+def sign(x):
+  if x > 0: return 1
+  if x < 0: return -1
+  return 0
+
 def rects_touch(a, b):
-    return a.x < b.x + 20 and \
-           a.x + 20 > b.x and \
-           a.y < other.y + 20 and \
-           a.y + 20 > other.y
+    return a.x < b.x + TILE_SIZE and \
+           a.x + TILE_SIZE > b.x and \
+           a.y < other.y + TILE_SIZE and \
+           a.y + TILE_SIZE > other.y
 
 class UpKeys:
   keysup = []
@@ -63,10 +70,10 @@ class Entity(object):
     self.x = x
     self.y = y
     self.groups = groups
-    self.img = SpriteSheet("tiles.png").image_at((0, 0, 20, 20))
+    self.img = SpriteSheet("tiles.png").image_at((0, 0, TILE_SIZE, TILE_SIZE))
 
   def render(self, dest):
-    dest.blit(self.img, (self.x, self.y, 20, 20))
+    dest.blit(self.img, (self.x, self.y, TILE_SIZE, TILE_SIZE))
 
   def touches(self, other):
     return abs(self.x - other.x) + abs(self.y - other.y)
@@ -75,53 +82,76 @@ class Character(Entity):
   def __init__(self, x, y):
     self.x = x
     self.y = y
+    self.vx = 0
+    self.vy = 0
+    self.on_ground = False
+
     self.speed = 6
 
     super(Character, self).__init__(self.x, self.y, ["render", "update"])
 
   def update(self, entities):
-    dy = self.speed * (UpKeys.is_key_down(pygame.K_s) - UpKeys.is_key_down(pygame.K_w))
+    if self.on_ground and UpKeys.is_key_down(pygame.K_w): 
+      self.vy = -15
+
+    dy = self.vy
     dx = self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
 
-    self.x += dx
-    if len(entities.get("wall", lambda e: e.touches(self))): self.x -= dx
-    self.y += dy
-    if len(entities.get("wall", lambda e: e.touches(self))): self.y -= dy
+    for _ in range(abs(dx)):
+      self.x += sign(dx)
+      if len(entities.get("wall", lambda e: e.touches(self))): 
+        self.x -= sign(dx)
+        break
+
+    self.on_ground = False
+
+    for _ in range(abs(dy)):
+      self.y += sign(dy)
+      if len(entities.get("wall", lambda e: e.touches(self))): 
+        self.vy = 0
+        self.y -= sign(dy)
+        self.on_ground = True
+        break
+
+    self.vy += 1
 
 data = """00000000000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
-00000001000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+00000000000000000000
+11111111111111111110
 00000000000000000000""".split("\n")
 
 class Map(Entity):
   def __init__(self):
     super(Map, self).__init__(0, 0, ["wall", "render"])
-    self.img = SpriteSheet("tiles.png").image_at((20, 0, 20, 20))
+    self.img = SpriteSheet("tiles.png").image_at((20, 0, TILE_SIZE, TILE_SIZE))
     self.map_w = 20
     self.map_h = 20
 
   def touches(self, other):
-    return data[(other.y + 0 )//20][(other.x + 0 )//20] == "1" or \
-           data[(other.y + 0 )//20][(other.x + 19)//20] == "1" or \
-           data[(other.y + 19)//20][(other.x + 0)//20] == "1" or \
-           data[(other.y + 19)//20][(other.x + 19)//20] == "1"
-
+    try:
+      return data[(other.y + 0 )//TILE_SIZE][(other.x + 0 )//TILE_SIZE] == "1" or \
+             data[(other.y + 0 )//TILE_SIZE][(other.x + TILE_SIZE - 1)//TILE_SIZE] == "1" or \
+             data[(other.y + TILE_SIZE - 1)//TILE_SIZE][(other.x + 0)//TILE_SIZE] == "1" or \
+             data[(other.y + TILE_SIZE - 1)//TILE_SIZE][(other.x + TILE_SIZE - 1)//TILE_SIZE] == "1"
+    except:
+      print "out of bounds"
+      return False
 
   def render(self, dest):
     for x in range(self.map_w):
@@ -153,7 +183,7 @@ class Entities(object):
     return results
 
 def main():
-  screen = pygame.display.set_mode((300, 300))
+  screen = pygame.display.set_mode((600, 600))
 
   pygame.display.init()
   pygame.font.init()
