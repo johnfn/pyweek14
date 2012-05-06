@@ -1,4 +1,5 @@
 import pygame
+from collections import defaultdict
 import sys
 
 class UpKeys:
@@ -52,13 +53,17 @@ class SpriteSheet(object):
     return image
 
 class Entity(object):
-  def __init__(self, x, y):
+  def __init__(self, x, y, groups):
     self.x = x
     self.y = y
+    self.groups = groups
     self.img = SpriteSheet("tiles.png").image_at((0, 0, 20, 20))
 
   def render(self, dest):
     dest.blit(self.img, (self.x, self.y, 20, 20))
+
+  def touches(self, other):
+    return abs(self.x - other.x) + abs(self.y - other.y)
 
 class Character(Entity):
   def __init__(self, x, y):
@@ -66,14 +71,67 @@ class Character(Entity):
     self.y = y
     self.speed = 6
 
-    super(Character, self).__init__(self.x, self.y)
+    super(Character, self).__init__(self.x, self.y, ["render", "update"])
 
   def update(self, entities):
     dy = self.speed * (UpKeys.is_key_down(pygame.K_s) - UpKeys.is_key_down(pygame.K_w))
     dx = self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
 
     self.x += dx
+    if len(entities.get("wall", lambda e: e.touches(self))): self.x -= dx
     self.y += dy
+    if len(entities.get("wall", lambda e: e.touches(self))): self.x -= dy
+
+data = """00000000000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000001000000000000
+00000000000000000000""".split("\n")
+
+class Map(Entity):
+  def __init__(self):
+    super(Map, self).__init__(0, 0, ["wall"])
+
+  def touches(self, other):
+    return data[other.y//20][other.x//20] == "1"
+
+def isalambda(v):
+  return isinstance(v, type(lambda: None)) and v.__name__ == '<lambda>'
+
+class Entities(object):
+  def __init__(self):
+    self.entities = defaultdict(set)
+
+  def add(self, entity):
+    groups = entity.groups
+    groups.append("all")
+
+    for group in groups:
+      self.entities[group].add(entity)
+
+  def get(self, *props):
+    results = self.entities["all"]
+
+    for p in props:
+      if isinstance(p, str): results = results & self.entities[p]
+      if isalambda(p): results = [e for e in results if p(e)]
+
+    return results
 
 def main():
   screen = pygame.display.set_mode((300, 300))
@@ -81,8 +139,11 @@ def main():
   pygame.display.init()
   pygame.font.init()
 
-  e = Entity(80, 80)
+  entities = Entities()
+  m = Map()
   char = Character(40, 40)
+  entities.add(m)
+  entities.add(char)
 
   while True:
     for event in pygame.event.get():
@@ -94,9 +155,8 @@ def main():
       if event.type == pygame.KEYUP:
         UpKeys.release_key(event.key)
 
-    char.update({})
+    char.update(entities)
     screen.fill((0, 0, 0))
-    e.render(screen)
     char.render(screen)
 
     pygame.display.flip()
