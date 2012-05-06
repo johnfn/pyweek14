@@ -1,3 +1,4 @@
+from __future__ import division
 import pygame
 from collections import defaultdict
 import sys
@@ -85,19 +86,29 @@ class Character(Entity):
     self.vx = 0
     self.vy = 0
     self.on_ground = False
+    self.LAG_FACTOR = 8
 
-    self.speed = 6
+    self.speed = 4
 
     super(Character, self).__init__(self.x, self.y, ["render", "update"])
 
   def update(self, entities):
     if self.on_ground and UpKeys.is_key_down(pygame.K_w): 
-      self.vy = -15
+      self.vy = -12
 
     dy = self.vy
     dx = self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
+    if dx != 0:
+      if sign(self.vx) != sign(dx): self.vx = 0
+      self.vx += sign(dx)
+    else:
+      self.vx = 0
 
-    for _ in range(abs(dx)):
+    if self.on_ground:
+      dx = min((abs(self.vx) / self.LAG_FACTOR) ** 2, 1) * self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
+
+
+    for _ in range(abs(int(dx))):
       self.x += sign(dx)
       if len(entities.get("wall", lambda e: e.touches(self))): 
         self.x -= sign(dx)
@@ -105,15 +116,15 @@ class Character(Entity):
 
     self.on_ground = False
 
-    for _ in range(abs(dy)):
+    for _ in range(abs(int(dy))):
       self.y += sign(dy)
       if len(entities.get("wall", lambda e: e.touches(self))): 
+        if sign(dy) > 0: self.on_ground = True
         self.vy = 0
         self.y -= sign(dy)
-        self.on_ground = True
         break
 
-    self.vy += 1
+    self.vy += 0.5
 
 data = """00000000000000000000
 00000000000000000000
@@ -123,15 +134,15 @@ data = """00000000000000000000
 00000000000000000000
 00000000000000000000
 00000000000000000000
+00000100010000000000
 00000000000000000000
+00000100010000000000
 00000000000000000000
+00010001001000000000
+00000001100000000000
+00000110000001000000
 00000000000000000000
-00000000000000000000
-00000000000000000000
-00000000000000000000
-00000000000000000000
-00000000000000000000
-00000000000000000000
+00000000100100010000
 00000000000000000000
 11111111111111111110
 00000000000000000000""".split("\n")
