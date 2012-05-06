@@ -93,20 +93,15 @@ class Character(Entity):
     super(Character, self).__init__(self.x, self.y, ["render", "update"])
 
   def update(self, entities):
-    if self.on_ground and UpKeys.is_key_down(pygame.K_w): 
-      self.vy = -12
-
-    dy = self.vy
-    dx = self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
-    if dx != 0:
-      if sign(self.vx) != sign(dx): self.vx = 0
-      self.vx += sign(dx)
+    if UpKeys.is_key_down(pygame.K_w):
+      if self.on_ground and UpKeys.is_key_down(pygame.K_w): 
+        self.vy = -12
     else:
-      self.vx = 0
+      self.vy = max(self.vy, 0)
 
-    if self.on_ground:
-      dx = min((abs(self.vx) / self.LAG_FACTOR) ** 2, 1) * self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
+    dy = self.vy 
 
+    dx = self.speed * (UpKeys.is_key_down(pygame.K_d) - UpKeys.is_key_down(pygame.K_a))
 
     for _ in range(abs(int(dx))):
       self.x += sign(dx)
