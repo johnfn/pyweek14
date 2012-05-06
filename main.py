@@ -2,6 +2,12 @@ import pygame
 from collections import defaultdict
 import sys
 
+def rects_touch(a, b):
+    return a.x < b.x + 20 and \
+           a.x + 20 > b.x and \
+           a.y < other.y + 20 and \
+           a.y + 20 > other.y
+
 class UpKeys:
   keysup = []
   keysdown = []
@@ -80,7 +86,7 @@ class Character(Entity):
     self.x += dx
     if len(entities.get("wall", lambda e: e.touches(self))): self.x -= dx
     self.y += dy
-    if len(entities.get("wall", lambda e: e.touches(self))): self.x -= dy
+    if len(entities.get("wall", lambda e: e.touches(self))): self.y -= dy
 
 data = """00000000000000000000
 00000001000000000000
@@ -105,10 +111,23 @@ data = """00000000000000000000
 
 class Map(Entity):
   def __init__(self):
-    super(Map, self).__init__(0, 0, ["wall"])
+    super(Map, self).__init__(0, 0, ["wall", "render"])
+    self.img = SpriteSheet("tiles.png").image_at((20, 0, 20, 20))
+    self.map_w = 20
+    self.map_h = 20
 
   def touches(self, other):
-    return data[other.y//20][other.x//20] == "1"
+    return data[(other.y + 0 )//20][(other.x + 0 )//20] == "1" or \
+           data[(other.y + 0 )//20][(other.x + 19)//20] == "1" or \
+           data[(other.y + 19)//20][(other.x + 0)//20] == "1" or \
+           data[(other.y + 19)//20][(other.x + 19)//20] == "1"
+
+
+  def render(self, dest):
+    for x in range(self.map_w):
+      for y in range(self.map_h):
+        if data[x][y] == "1":
+          dest.blit(self.img, (y * 20, x * 20, 20, 20))
 
 def isalambda(v):
   return isinstance(v, type(lambda: None)) and v.__name__ == '<lambda>'
@@ -158,6 +177,7 @@ def main():
     char.update(entities)
     screen.fill((0, 0, 0))
     char.render(screen)
+    m.render(screen)
 
     pygame.display.flip()
 
