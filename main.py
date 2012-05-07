@@ -67,12 +67,14 @@ class SpriteSheet(object):
     return image
 
 class Entity(object):
-  def __init__(self, x, y, groups):
+  def __init__(self, x, y, tilesheet_coords, groups, entities):
     self.x = x
     self.y = y
     self.groups = groups
-    self.img = SpriteSheet("tiles.png").image_at((0, 0, TILE_SIZE, TILE_SIZE))
+    self.img = SpriteSheet("tiles.png").image_at((tilesheet_coords[0], tilesheet_coords[1], TILE_SIZE, TILE_SIZE))
     self.size = TILE_SIZE
+
+    entities.add(self)
 
   def boundary_points(self):
     return [[self.x, self.y], [self.x + self.size, self.y], [self.x, self.y + self.size], [self.x + self.size, self.y + self.size]]
@@ -89,14 +91,25 @@ class Entity(object):
   def touches(self, other):
     return abs(self.x - other.x) + abs(self.y - other.y)
 
+class Enemy(Entity):
+  def __init__(self, x, y, entities):
+    super(Enemy, self).__init__(x, y, (2, 2), ["render", "update", "enemy"], entities)
+
+    self.direction = {'x': 1, 'y': 0}
+    self.speed = 4
+
+  def update(self, entities):
+    self.x += self.direction['x'] * self.speed
+    self.y += self.direction['y'] * self.speed
+
 class Bullet(Entity):
-  def __init__(self, owner, direction):
+  def __init__(self, owner, direction, entities):
     self.x = owner.x + 4
     self.y = owner.y + 4
     self.direction = owner.direction
     self.speed = 6
 
-    super(Bullet, self).__init__(self.x, self.y, ["render", "update", "bullet"])
+    super(Bullet, self).__init__(self.x, self.y, (0, 0), ["render", "update", "bullet"], entities)
     self.size = 4
 
   def update(self, entities):
@@ -107,7 +120,7 @@ class Bullet(Entity):
       self.kill(entities)
 
 class Character(Entity):
-  def __init__(self, x, y):
+  def __init__(self, x, y, entities):
     self.x = x
     self.y = y
     self.vx = 0
@@ -118,14 +131,13 @@ class Character(Entity):
     self.speed = 4
     self.direction = {'x': 1, 'y': 0}
 
-    super(Character, self).__init__(self.x, self.y, ["render", "update"])
+    super(Character, self).__init__(self.x, self.y, (1, 1), ["render", "update"], entities)
     self.size = TILE_SIZE - 1
 
   def check_shoot(self, entities):
     if not UpKeys.is_key_down(pygame.K_SPACE): return
 
-    b = Bullet(self, self.direction)
-    entities.add(b)
+    b = Bullet(self, self.direction, entities)
 
   def update(self, entities):
     self.check_shoot(entities)
@@ -182,8 +194,8 @@ data = """00000000000000000000
 00000000000000000000""".split("\n")
 
 class Map(Entity):
-  def __init__(self):
-    super(Map, self).__init__(0, 0, ["wall", "render"])
+  def __init__(self, entities):
+    super(Map, self).__init__(0, 0, (0, 0), ["wall", "render"], entities)
     self.img = SpriteSheet("tiles.png").image_at((20, 0, TILE_SIZE, TILE_SIZE))
     self.map_w = 20
     self.map_h = 20
@@ -250,10 +262,10 @@ def main():
   pygame.font.init()
 
   entities = Entities()
-  m = Map()
-  char = Character(40, 40)
-  entities.add(m)
-  entities.add(char)
+
+  m = Map(entities)
+  char = Character(40, 40, entities)
+  e = Enemy(100, 100, entities)
 
   while True:
     for event in pygame.event.get():
