@@ -93,11 +93,11 @@ class Bullet(Entity):
   def __init__(self, owner, direction):
     self.x = owner.x + 4
     self.y = owner.y + 4
-    self.size = 4
     self.direction = owner.direction
     self.speed = 6
 
     super(Bullet, self).__init__(self.x, self.y, ["render", "update", "bullet"])
+    self.size = 4
 
   def update(self, entities):
     self.x += self.direction['x'] * self.speed
@@ -119,6 +119,7 @@ class Character(Entity):
     self.direction = {'x': 1, 'y': 0}
 
     super(Character, self).__init__(self.x, self.y, ["render", "update"])
+    self.size = TILE_SIZE - 1
 
   def check_shoot(self, entities):
     if not UpKeys.is_key_down(pygame.K_SPACE): return
@@ -195,12 +196,11 @@ class Map(Entity):
       for point in other.boundary_points():
         point = [coord//TILE_SIZE for coord in point]
         if self.is_wall(*point): 
-          print "uhuh"
           return True
 
       return False
     except:
-      print "out of bounds: TODO"
+      #print "out of bounds: TODO"
       return False
 
   def render(self, dest):
