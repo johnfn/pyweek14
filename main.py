@@ -1,6 +1,8 @@
 from __future__ import division
-import pygame
 from collections import defaultdict
+
+import math
+import pygame
 import sys
 
 TILE_SIZE = 20
@@ -15,6 +17,15 @@ def rects_touch(a, b):
            a.x + TILE_SIZE > b.x and \
            a.y < other.y + TILE_SIZE and \
            a.y + TILE_SIZE > other.y
+
+class Tick:
+  ticks = 0
+
+  @staticmethod
+  def tick(): Tick.ticks += 1
+
+  @staticmethod
+  def get(n): return Tick.ticks % n == 0
 
 class UpKeys:
   keysup = []
@@ -82,6 +93,13 @@ class Entity(object):
   def in_bounds(self):
     return self.x > 0 and self.y > 0 and self.x <= 400 and self.y <= 400
 
+  def hurt(self, amt, entities):
+    assert(hasattr(self, 'hp'))
+
+    self.hp -= amt
+    if self.hp < 0:
+      self.kill(entities)
+
   def kill(self, entities):
     entities.remove(self)
 
@@ -89,7 +107,7 @@ class Entity(object):
     dest.blit(self.img, (self.x, self.y, TILE_SIZE, TILE_SIZE))
 
   def touches(self, other):
-    return abs(self.x - other.x) + abs(self.y - other.y)
+    return (math.sqrt(abs(self.x ** 2 - other.x ** 2)) + math.sqrt(abs(self.y ** 2 - other.y ** 2))) < 100
 
 class Enemy(Entity):
   def __init__(self, x, y, entities):
@@ -97,19 +115,24 @@ class Enemy(Entity):
 
     self.direction = {'x': 1, 'y': 0}
     self.speed = 4
+    self.hp = 5
+    self.hp_max = 5
 
   def update(self, entities):
     self.x += self.direction['x'] * self.speed
     self.y += self.direction['y'] * self.speed
 
+    if not self.in_bounds():
+      self.direction['x'] *= -1
+      self.direction['y'] *= -1
+
 class Bullet(Entity):
   def __init__(self, owner, direction, entities):
-    self.x = owner.x + 4
-    self.y = owner.y + 4
+    super(Bullet, self).__init__(owner.x + 4, owner.y + 4, (0, 0), ["render", "update", "bullet"], entities)
+
     self.direction = owner.direction
     self.speed = 6
-
-    super(Bullet, self).__init__(self.x, self.y, (0, 0), ["render", "update", "bullet"], entities)
+    self.dmg = 1
     self.size = 4
 
   def update(self, entities):
@@ -119,10 +142,13 @@ class Bullet(Entity):
     if len(entities.get("wall", lambda e: e.touches(self))) or not self.in_bounds():
       self.kill(entities)
 
+    enemies = entities.get("enemy", lambda e: e.touches(self))
+    if len(enemies):
+      enemies[0].hurt(self.dmg, entities)
+      self.kill(entities)
+
 class Character(Entity):
   def __init__(self, x, y, entities):
-    self.x = x
-    self.y = y
     self.vx = 0
     self.vy = 0
     self.on_ground = False
@@ -131,11 +157,12 @@ class Character(Entity):
     self.speed = 4
     self.direction = {'x': 1, 'y': 0}
 
-    super(Character, self).__init__(self.x, self.y, (1, 1), ["render", "update"], entities)
+    super(Character, self).__init__(x, y, (1, 1), ["render", "update"], entities)
     self.size = TILE_SIZE - 1
 
   def check_shoot(self, entities):
     if not UpKeys.is_key_down(pygame.K_SPACE): return
+    if not Tick.get(10): return
 
     b = Bullet(self, self.direction, entities)
 
@@ -268,6 +295,8 @@ def main():
   e = Enemy(100, 100, entities)
 
   while True:
+    Tick.tick()
+
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         pygame.quit()
