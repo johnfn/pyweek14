@@ -147,6 +147,23 @@ class Bullet(Entity):
       enemies[0].hurt(self.dmg, entities)
       self.kill(entities)
 
+class Bar(Entity):
+  def __init__(self, x, y, entities):
+    super(Bar, self).__init__(x, y, (0, 0), ["render", "update", "bar"], entities)
+
+    self.width = 50
+    self.height = 10
+    self.border_width = 2
+
+    self.img = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+    pygame.draw.rect(self.img, (0, 0, 255), (0, 0, self.width, self.height))
+
+  def update(self, entities):
+    pass
+
+  def render(self, screen):
+    screen.blit(self.img, (self.x, self.y))
+
 class Character(Entity):
   def __init__(self, x, y, entities):
     self.vx = 0
@@ -293,6 +310,7 @@ def main():
   m = Map(entities)
   char = Character(40, 40, entities)
   e = Enemy(100, 100, entities)
+  b = Bar(10, 10, entities)
 
   while True:
     Tick.tick()
